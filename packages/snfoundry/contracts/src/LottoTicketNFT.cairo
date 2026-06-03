@@ -26,7 +26,7 @@ struct TicketDetails {
 // Interface of the LottoTicketNFT contract
 //=======================================================================================
 #[starknet::interface]
-trait ILottoTicketNFT<TContractState> {
+pub trait ILottoTicketNFT<TContractState> {
     // Query functions
     fn name(self: @TContractState) -> ByteArray;
     fn symbol(self: @TContractState) -> ByteArray;

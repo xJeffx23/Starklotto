@@ -98,6 +98,7 @@ pub trait ILottery<TContractState> {
     fn RequestRandomGeneration(ref self: TContractState, drawId: u64, seed: u64) -> u64;
     fn DistributePrizes(ref self: TContractState, drawId: u64);
     fn AddExternalFunds(ref self: TContractState, amount: u256);
+    fn SetNFTContractAddress(ref self: TContractState, nft_address: ContractAddress);
     //=======================================================================================
     //get functions
     fn GetTicketPrice(self: @TContractState) -> u256;
@@ -149,6 +150,8 @@ pub trait ILottery<TContractState> {
 
     // Get randomness contract address
     fn GetRandomnessContractAddress(self: @TContractState) -> ContractAddress;
+    fn GetNFTContractAddress(self: @TContractState) -> ContractAddress;
+    fn GetTicketNftId(self: @TContractState, drawId: u64, ticketId: felt252) -> u256;
     //=======================================================================================
 }
 
@@ -157,6 +160,7 @@ pub trait ILottery<TContractState> {
 //=======================================================================================
 #[starknet::contract]
 pub mod Lottery {
+    use contracts::LottoTicketNFT::{ILottoTicketNFTDispatcher, ILottoTicketNFTDispatcherTrait};
     use contracts::StarkPlayERC20::{IPrizeTokenDispatcher, IPrizeTokenDispatcherTrait};
     use core::array::{Array, ArrayTrait};
     use core::dict::{Felt252Dict, Felt252DictTrait};
@@ -398,6 +402,10 @@ pub mod Lottery {
         strkPlayVaultContractAddress: ContractAddress,
         // Address of the deployed Randomness contract
         randomnessContractAddress: ContractAddress,
+        // NFT contract address (optional — zero means NFT minting disabled)
+        nftContractAddress: ContractAddress,
+        // Maps (drawId, ticketId) -> NFT token_id minted for that ticket
+        ticketNftId: Map<(u64, felt252), u256>,
         // Randomness generation ID counter (starts at 1)
         currentRandomnessId: u64,
         // ownable component by openzeppelin
@@ -543,10 +551,6 @@ pub mod Lottery {
             // Generate multiple tickets with unique numbers
             let mut i: u8 = 0;
             while i != quantity {
-                // TODO: Mint the NFT here, for now it is simulated
-                let minted = true;
-                assert(minted, 'NFT minting failed');
-
                 // Get numbers for this specific ticket
                 let ticket_numbers = numbers_array.at(i.into());
                 let n1 = *ticket_numbers.at(0);
@@ -571,6 +575,18 @@ pub mod Lottery {
 
                 let ticketId = GenerateTicketId(ref self);
                 self.tickets.entry((drawId, ticketId)).write(ticketNew);
+
+                // Mint NFT if contract is configured (zero address = disabled, keeps tests working)
+                let nft_address = self.nftContractAddress.read();
+                let zero_address: ContractAddress = 0.try_into().unwrap();
+                if nft_address != zero_address {
+                    let nft_dispatcher = ILottoTicketNFTDispatcher {
+                        contract_address: nft_address,
+                    };
+                    let token_id = nft_dispatcher
+                        .mint_ticket(caller, drawId, n1, n2, n3, n4, n5);
+                    self.ticketNftId.entry((drawId, ticketId)).write(token_id);
+                }
 
                 // Increment counter and save ticketId
                 count += 1;
@@ -1206,6 +1222,19 @@ pub mod Lottery {
 
         fn GetRandomnessContractAddress(self: @ContractState) -> ContractAddress {
             self.randomnessContractAddress.read()
+        }
+
+        fn GetNFTContractAddress(self: @ContractState) -> ContractAddress {
+            self.nftContractAddress.read()
+        }
+
+        fn GetTicketNftId(self: @ContractState, drawId: u64, ticketId: felt252) -> u256 {
+            self.ticketNftId.entry((drawId, ticketId)).read()
+        }
+
+        fn SetNFTContractAddress(ref self: ContractState, nft_address: ContractAddress) {
+            self.ownable.assert_only_owner();
+            self.nftContractAddress.write(nft_address);
         }
 
         /// Requests random number generation for a draw

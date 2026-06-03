@@ -179,7 +179,70 @@ const deployScript = async (): Promise<void> => {
     throw new Error(`Vault role assignment failed: ${error}`);
   }
 
-  // Note: LottoTicketNFT deployment removed as it's not needed currently
+  // Deploy LottoTicketNFT and wire it to Lottery
+  console.log("Deploying LottoTicketNFT contract...");
+  const nftDeploymentResult = await deployContract({
+    contract: "LottoTicketNFT",
+    contractName: "LottoTicketNFT",
+    constructorArgs: {
+      owner: deployer.address,
+      name: "StarkLotto Ticket",
+      symbol: "SLOTTO",
+      base_uri: "https://starklotto.io/api/ticket/",
+    },
+  });
+  const nftAddress = nftDeploymentResult.address;
+
+  if (
+    !nftAddress ||
+    nftAddress === "" ||
+    nftAddress.startsWith(
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    )
+  ) {
+    throw new Error(`Failed to deploy LottoTicketNFT or address is invalid: ${nftAddress}`);
+  }
+  console.log(`LottoTicketNFT deployed successfully at address: ${nftAddress}`);
+
+  // Execute NFT deployment before post-deploy calls
+  await executeDeployCalls();
+
+  try {
+    const { Contract } = await import("starknet");
+
+    // Load LottoTicketNFT ABI
+    const nftCompiledContract = JSON.parse(
+      fs.readFileSync(
+        path.join(__dirname, "../contracts/target/dev/contracts_LottoTicketNFT.contract_class.json"),
+        "utf8"
+      )
+    );
+
+    const nftContract = new Contract(nftCompiledContract.abi, nftAddress, deployer);
+
+    // Allow Lottery to call mint_ticket on the NFT contract
+    console.log("Setting lottery contract on LottoTicketNFT...");
+    await nftContract.set_lottery_contract(lotteryAddress);
+    console.log("LottoTicketNFT lottery contract set successfully");
+
+    // Load Lottery ABI
+    const lotteryCompiledContract = JSON.parse(
+      fs.readFileSync(
+        path.join(__dirname, "../contracts/target/dev/contracts_Lottery.contract_class.json"),
+        "utf8"
+      )
+    );
+
+    const lotteryContract = new Contract(lotteryCompiledContract.abi, lotteryAddress, deployer);
+
+    // Register NFT address in Lottery
+    console.log("Setting NFT contract address on Lottery...");
+    await lotteryContract.SetNFTContractAddress(nftAddress);
+    console.log("Lottery NFT contract address set successfully");
+  } catch (error) {
+    console.error("Failed to wire NFT contract:", error);
+    throw new Error(`NFT wiring failed: ${error}`);
+  }
 };
 
 const main = async (): Promise<void> => {
