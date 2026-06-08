@@ -372,8 +372,6 @@ pub mod StarkPlayVault {
         true
     }
 
-    //TODO: delete fn public
-    //#[external(v0)]
     fn _mint_strk_play(self: @ContractState, user: ContractAddress, amount: u256) -> bool {
         let starkPlayContractAddress = self.starkPlayToken.read();
         let mintDispatcher = IMintableDispatcher { contract_address: starkPlayContractAddress };

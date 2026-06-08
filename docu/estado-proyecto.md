@@ -1,6 +1,6 @@
 # StarkLotto — Estado del Proyecto
 
-> Última revisión: 2026-06-02
+> Última revisión: 2026-06-07
 
 ---
 
@@ -10,7 +10,7 @@ DApp de lotería descentralizada en Starknet. Monorepo con Cairo smart contracts
 
 - **Contratos:** `packages/snfoundry/contracts/src/`
 - **Frontend:** `packages/nextjs/`
-- **Estado global:** ~75-80% completo. Arquitectura sólida, faltan integraciones clave para demo.
+- **Estado global:** ~90% completo. NFT integrado, todos los CUs implementados (1-6), 336 tests. Pendiente: deploy Sepolia, VRF real, test_CU06.cairo.
 
 ---
 
@@ -18,24 +18,36 @@ DApp de lotería descentralizada en Starknet. Monorepo con Cairo smart contracts
 
 | Contrato | Líneas | Estado |
 |---|---|---|
-| `Lottery.cairo` | 1,733 | ✅ Funcional — gaps documentados abajo |
-| `StarkPlayVault.cairo` | 695 | ✅ Funcional — cleanup pendiente |
+| `Lottery.cairo` | 1,762 | ✅ Funcional — VRF real pendiente |
+| `StarkPlayVault.cairo` | 693 | ✅ Completo — TODO public fn resuelto |
 | `StarkPlayERC20.cairo` | 403 | ✅ Completo |
-| `LottoTicketNFT.cairo` | 335 | ⚠️ Escrito pero **NO integrado** en Lottery |
+| `LottoTicketNFT.cairo` | 335 | ✅ Integrado en `BuyTicket` (condicional: si NFT address = 0, minting desactivado) |
 | `MockRandomness.cairo` | 63 | ⚠️ Solo mock — sin VRF real |
 
 ---
 
 ## CUs (User Stories) — Implementación
 
-| CU | Descripción | Contrato | Tests | Estado |
-|---|---|---|---|---|
-| CU-01 | Comprar ticket | Lottery.cairo | test_CU01.cairo | ✅ Completo |
-| CU-02 | Convertir STRKP → STRK | StarkPlayVault.cairo | test_CU02.cairo | ✅ Completo (159 tests) |
-| CU-03 | Registro de tickets | Lottery.cairo | test_CU03.cairo | ✅ Completo |
-| CU-04 | Desconocido | — | **NO EXISTE** | ❌ Sin tests |
-| CU-05 | Distribuir premios | Lottery.cairo | test_CU05.cairo | ✅ Completo |
-| CU-06 | Reclamar premio | Lottery.cairo | — | ✅ Implementado |
+| CU | Descripción | Contrato | Tests | # Tests | Estado |
+|---|---|---|---|---|---|
+| CU-01 | Comprar ticket | Lottery.cairo | test_CU01.cairo | 123 | ✅ Completo |
+| CU-02 | Convertir STRKP → STRK | StarkPlayVault.cairo | test_CU02.cairo | 17 | ✅ Completo |
+| CU-03 | Registro de tickets | Lottery.cairo | test_CU03.cairo | 68 | ✅ Completo |
+| CU-04 | Ejecutar Sorteo (`RequestRandomGeneration` + `DrawNumbers`) | Lottery.cairo | test_CU04.cairo | 18 | ✅ Completo |
+| CU-05 | Distribuir premios | Lottery.cairo | test_CU05.cairo | 6 | ✅ Completo |
+| CU-06 | Reclamar premio | Lottery.cairo | ⚠️ sin test_CU06.cairo | 0 | ✅ Implementado — tests pendientes |
+
+### Tests suplementarios
+
+| Archivo | # Tests | Cobertura |
+|---|---|---|
+| `test_basic_functions.cairo` | 32 | Funciones core generales |
+| `test_lottery_getters.cairo` | 39 | Getters del contrato Lottery |
+| `test_ticket_recording.cairo` | 19 | Registro y almacenamiento de tickets |
+| `test_jackpot_history.cairo` | 10 | Historial del jackpot |
+| `test_reentrancy_guard.cairo` | 4 | Seguridad contra reentrancy |
+
+**Total tests en el proyecto: 336** (232 CU + 104 suplementarios)
 
 ---
 
@@ -55,6 +67,10 @@ DApp de lotería descentralizada en Starknet. Monorepo con Cairo smart contracts
 | `/admin` | Panel admin general | ✅ Existe |
 | `/admin-lottery` | Admin lotería | ✅ Existe |
 | `/jackpot-report` | Historial jackpot | ✅ Existe |
+| `/about-us` | Sobre el proyecto | ✅ Existe |
+| `/contact-us` | Contacto | ✅ Existe |
+| `/how-it-works` | Cómo funciona | ✅ Existe |
+| `/configure` | Configuración de red/wallet | ✅ Existe |
 | `/dapp` | Herramienta developer | ✅ Existe |
 | `/debug` | Debug contratos | ✅ Existe |
 
@@ -74,40 +90,39 @@ DApp de lotería descentralizada en Starknet. Monorepo con Cairo smart contracts
 
 ### Crítico (bloquea demo)
 
-#### 1. NFT minting no integrado
-- **Archivo:** `Lottery.cairo:546`
-- **Problema:** `LottoTicketNFT.cairo` existe completo (335 líneas, ERC721) pero `BuyTicket` tiene un `// TODO: Mint the NFT here, for now it is simulated` — nunca llama al contrato NFT.
-- **Lo que falta:** En `BuyTicket`, dispatch a `LottoTicketNFT` para mintear un NFT real por cada ticket comprado.
-
-#### 2. Sin deploy en Sepolia / red real
+#### 1. Sin deploy en Sepolia / red real
 - **Archivo:** `packages/snfoundry/deployments/` — solo contiene `clear.mjs`, sin deployments reales.
 - **`deployedContracts.ts`** apunta a devnet local.
 - **Lo que falta:** Deploy completo en Sepolia y actualizar `deployedContracts.ts`.
 
-#### 3. CU-04 sin implementar
-- **Problema:** Existe `test_CU01`, `test_CU02`, `test_CU03`, `test_CU05` pero **`test_CU04.cairo` no existe**. No está claro qué funcionalidad cubre CU-04.
-- **Lo que falta:** Identificar qué es CU-04, implementarlo si falta, escribir tests.
-
 ### Importante (no bloquea demo pero es deuda técnica)
 
-#### 4. VRF real (Pragma Oracle) no integrado
-- **Archivo:** `Lottery.cairo:1712`
+#### 2. VRF real (Pragma Oracle) no integrado
+- **Archivo:** `Lottery.cairo:1741`
 - **Problema:** `// TODO: We need to use VRF de Pragma Oracle to generate random numbers`. El contrato usa `MockRandomness` que es predecible — en mainnet/sepolia es un vector de ataque.
 - **Lo que falta:** Reemplazar `MockRandomness` con integración real a Pragma VRF.
 
-#### 5. Función pública en Vault que debería ser interna
-- **Archivo:** `StarkPlayVault.cairo:375`
-- **Problema:** `//TODO: delete fn public` — una función expuesta que no debería serlo.
-- **Lo que falta:** Cambiar visibilidad o eliminar la función.
+### Resuelto recientemente ✅
 
-#### 6. test_CU04 ausente
-- Ver punto 3 arriba.
+#### ~~NFT minting no integrado~~ (resuelto — commit ca3f890)
+- `BuyTicket` ahora llama a `ILottoTicketNFTDispatcher.mint_ticket()` si el NFT contract address está configurado (zero address = minting desactivado, compatible con tests).
+
+#### ~~CU-04 sin implementar~~ (resuelto)
+- `test_CU04.cairo` existe con 18 tests que cubren `RequestRandomGeneration` + `DrawNumbers`.
+
+#### ~~Función pública en Vault~~ (resuelto — StarkPlayVault.cairo:372 modificado, pendiente commit)
+- El comentario `//TODO: delete fn public` y la línea `//[external(v0)]` fueron eliminados. `_mint_strk_play` ya es función privada (prefijo `_`). Cambio unstaged en `git status`.
+
+#### ~~CU-06 sin implementar~~ (resuelto — commit b52335a)
+- `ClaimPrize` implementado con sistema de prize tokens. UI integrada. Falta test_CU06.cairo.
 
 ### Menor (scaffold/boilerplate pendiente)
 
-- `ContractVariables` en debug UI (`ContractByDebugUI.tsx:97`) — no existe equivalente en Starknet, comentado con TODO.
+- `ContractVariables` en debug UI (`ContractByDebugUI.tsx:97` y `ContractUI.tsx:97`) — no existe equivalente en Starknet, comentado con TODO.
 - `AddressInput` sin Starknet Name Service (`AddressInput.tsx:19`).
-- Algunos `useMemo` optimizations pendientes en forms.
+- `useMemo` optimization pendiente en `WriteOnlyFunctionForm.tsx:119` (tanto en `contractByApp/` como en `contractByDebug/` y `debug/_components/`).
+- `DisplayVariable.tsx:39` — notificación de error pendiente en bloque `blockIdentifier: "pending"`.
+- **test_CU06.cairo** — no existe, CU-06 carece de tests automatizados.
 
 ---
 
@@ -116,15 +131,15 @@ DApp de lotería descentralizada en Starknet. Monorepo con Cairo smart contracts
 Para una demo funcional end-to-end se necesita:
 
 ```
-1. Deploy en Sepolia (todos los contratos)
+1. Deploy en Sepolia (todos los contratos, incluyendo LottoTicketNFT)
    ↓
-2. Integrar LottoTicketNFT en BuyTicket
+2. Llamar SetNFTContractAddress en Lottery con la dirección deployada
    ↓
 3. Crear draw activo (CreateNewDraw)
    ↓
-4. Usuario compra ticket → recibe NFT real
+4. Usuario compra ticket → recibe NFT real (ERC721)
    ↓
-5. Admin ejecuta DrawNumbers (con MockRandomness por ahora)
+5. Admin ejecuta RequestRandomGeneration + DrawNumbers (MockRandomness por ahora)
    ↓
 6. Admin ejecuta DistributePrizes
    ↓
