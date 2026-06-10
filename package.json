@@ -26,7 +26,13 @@
     "format": "yarn workspace @ss-2/nextjs format && yarn workspace @ss-2/snfoundry format",
     "format:check": "yarn workspace @ss-2/nextjs format:check && yarn workspace @ss-2/snfoundry format:check",
     "prepare": "husky",
-    "verify": "yarn workspace @ss-2/snfoundry verify"
+    "verify": "yarn workspace @ss-2/snfoundry verify",
+    "stellar:build": "cd packages/soroban && cargo build --release --target wasm32-unknown-unknown",
+    "stellar:test": "cd packages/soroban && cargo test",
+    "stellar:fmt": "cd packages/soroban && cargo fmt",
+    "stellar:fmt:check": "cd packages/soroban && cargo fmt -- --check",
+    "stellar:deploy:testnet": "cd packages/soroban && stellar contract deploy --wasm target/wasm32-unknown-unknown/release/soroban_lottery.wasm --network testnet --source-account default",
+    "stellar:deploy:mainnet": "cd packages/soroban && stellar contract deploy --wasm target/wasm32-unknown-unknown/release/soroban_lottery.wasm --network mainnet --source-account default"
   },
   "packageManager": "yarn@3.2.3",
   "devDependencies": {

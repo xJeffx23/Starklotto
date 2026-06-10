@@ -4,6 +4,7 @@ import "~~/styles/globals.css";
 import { ThemeProvider } from "~~/components/ThemeProvider";
 import I18nProvider from "~~/components/I18nProvider";
 import Header from "~~/components/Header";
+import { ChainProvider } from "~~/context/ChainContext";
 /* import Footer from "~~/components/Footer"; */
 
 export const metadata: Metadata = {
@@ -21,11 +22,13 @@ const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
       >
         <I18nProvider>
           <ThemeProvider enableSystem>
-            <ScaffoldStarkAppWithProviders>
-              {/* <Header /> */}
-              <main className="flex-grow">{children}</main>
-              {/* <Footer /> */}
-            </ScaffoldStarkAppWithProviders>
+            <ChainProvider>
+              <ScaffoldStarkAppWithProviders>
+                {/* <Header /> */}
+                <main className="flex-grow">{children}</main>
+                {/* <Footer /> */}
+              </ScaffoldStarkAppWithProviders>
+            </ChainProvider>
           </ThemeProvider>
         </I18nProvider>
       </body>
